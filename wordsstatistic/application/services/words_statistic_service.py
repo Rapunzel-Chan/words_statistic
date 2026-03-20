@@ -1,19 +1,15 @@
 import asyncio
 import uuid
 from typing import Dict, Optional
-from ...domain.entities.words_statistic import WordStatistics, ProcessingResult
-from ...domain.interfaces.repos import IWordStatisticsRepository, IFileProcessor
+
+from ...domain.entities.words_statistic import ProcessingResult, WordStatistics
+from ...domain.interfaces.repos import IFileProcessor, IWordStatisticsRepository
 
 
 class WordStatisticsService:
     """Сервис для работы со статистикой слов"""
 
-    def __init__(
-            self,
-            file_processor: IFileProcessor,
-            repository: IWordStatisticsRepository,
-            max_concurrent: int = 3
-    ):
+    def __init__(self, file_processor: IFileProcessor, repository: IWordStatisticsRepository, max_concurrent: int = 3):
         self.file_processor = file_processor
         self.repository = repository
         self._tasks: Dict[str, ProcessingResult] = {}
@@ -27,10 +23,7 @@ class WordStatisticsService:
         task_id = str(uuid.uuid4())
 
         # Создаем задачу
-        self._tasks[task_id] = ProcessingResult(
-            task_id=task_id,
-            status="processing"
-        )
+        self._tasks[task_id] = ProcessingResult(task_id=task_id, status="processing")
 
         # Запускаем обработку в фоне
         asyncio.create_task(self._process_file_task(task_id, file_path, repository))
@@ -46,6 +39,7 @@ class WordStatisticsService:
 
                 # Проверяем существование файла перед обработкой
                 import os
+
                 if not os.path.exists(file_path):
                     raise FileNotFoundError(f"File not found: {file_path}")
 
@@ -56,20 +50,12 @@ class WordStatisticsService:
                 result_path = await self.repository.save(statistics)
 
                 # Обновляем статус задачи
-                self._tasks[task_id] = ProcessingResult(
-                    task_id=task_id,
-                    status="completed",
-                    result_path=result_path
-                )
+                self._tasks[task_id] = ProcessingResult(task_id=task_id, status="completed", result_path=result_path)
                 print(f"Task {task_id}: Completed successfully")
 
         except Exception as e:
             print(f"Task {task_id}: Failed with error: {str(e)}")
-            self._tasks[task_id] = ProcessingResult(
-                task_id=task_id,
-                status="failed",
-                error=str(e)
-            )
+            self._tasks[task_id] = ProcessingResult(task_id=task_id, status="failed", error=str(e))
         finally:
             # Очищаем временный файл после обработки (даже если была ошибка)
             if repository and file_path:

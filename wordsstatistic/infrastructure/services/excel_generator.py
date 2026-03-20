@@ -1,7 +1,10 @@
-from typing import List
-import openpyxl
-from openpyxl.styles import Font, Alignment
 import os
+from typing import List
+
+import openpyxl
+from openpyxl.styles import Alignment, Font
+from openpyxl.worksheet.worksheet import Worksheet
+
 from ...domain.entities.words_statistic import WordStatistics
 
 
@@ -18,6 +21,13 @@ class ExcelGenerator:
         # Создаем новую книгу
         wb = openpyxl.Workbook()
         ws = wb.active
+        if ws is None:
+            # Создаем лист, если его нет
+            ws = wb.create_sheet("Word Statistics")
+
+            # Убеждаемся, что ws - это Worksheet
+        if not isinstance(ws, Worksheet):
+            ws = wb.create_sheet("Word Statistics")
         ws.title = "Word Statistics"
 
         # Заголовки

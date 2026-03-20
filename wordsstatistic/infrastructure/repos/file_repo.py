@@ -1,7 +1,8 @@
-import os
 import asyncio
-from typing import List
+import os
 from datetime import datetime
+from typing import List
+
 from ...domain.entities.words_statistic import WordStatistics
 from ...domain.interfaces.repos import IWordStatisticsRepository
 from ..services.excel_generator import ExcelGenerator

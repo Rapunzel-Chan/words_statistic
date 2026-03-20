@@ -954,6 +954,18 @@ anyio = ">=3.6.2,<5"
 full = ["httpx (>=0.27.0,<0.29.0)", "itsdangerous", "jinja2", "python-multipart (>=0.0.18)", "pyyaml"]
 
 [[package]]
+name = "types-openpyxl"
+version = "3.1.5.20260316"
+description = "Typing stubs for openpyxl"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "types_openpyxl-3.1.5.20260316-py3-none-any.whl", hash = "sha256:38e7e125df520fb7eb72cb1129c9f024eb99ef9564aad2c27f68f080c26bcf2d"},
+    {file = "types_openpyxl-3.1.5.20260316.tar.gz", hash = "sha256:081dda9427ea1141e5649e3dcf630e7013a4cf254a5862a7e0a3f53c123b7ceb"},
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.15.0"
 description = "Backported and Experimental Type Hints for Python 3.9+"
@@ -1002,4 +1014,4 @@ standard = ["colorama (>=0.4) ; sys_platform == \"win32\"", "httptools (>=0.6.3)
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.14 <4.0"
-content-hash = "65b34a7d2a166b22514f291c3b4b92d9bd1689e6e054041e740a01fe3027b959"
+content-hash = "6477aa3ca12944fcbd549972dba826e9870329901855e90b20a36ac0e7ce36b3"

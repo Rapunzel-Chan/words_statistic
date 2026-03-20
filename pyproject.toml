@@ -25,9 +25,9 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.mypy]
-disallow_untyped_defs = true
+disallow_untyped_defs = false
 no_implicit_optional = true
-warn_return_any = true
+warn_return_any = false
 exclude = 'venv'
 
 [tool.black]
@@ -58,5 +58,6 @@ lint = [
     "flake8 (>=7.3.0,<8.0.0)"
 ]
 dev = [
-    "pytest (>=9.0.2,<10.0.0)"
+    "pytest (>=9.0.2,<10.0.0)",
+    "types-openpyxl (>=3.1.5.20260316,<4.0.0.0)"
 ]

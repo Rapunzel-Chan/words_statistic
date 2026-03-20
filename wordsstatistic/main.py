@@ -1,6 +1,6 @@
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 
 from .api.endpoints import report
 from .infrastructure.config.settings import settings
@@ -13,7 +13,7 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         description="API for collecting word statistics from text files",
         version=settings.app_version,
-        debug=settings.debug
+        debug=settings.debug,
     )
 
     # CORS
@@ -30,11 +30,7 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health_check():
-        return {
-            "status": "healthy",
-            "app": settings.app_name,
-            "version": settings.app_version
-        }
+        return {"status": "healthy", "app": settings.app_name, "version": settings.app_version}
 
     return app
 
@@ -42,10 +38,4 @@ def create_app() -> FastAPI:
 app = create_app()
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "wordsstatistic.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=settings.debug,
-        workers=1
-    )
+    uvicorn.run("wordsstatistic.main:app", host="0.0.0.0", port=8000, reload=settings.debug, workers=1)
