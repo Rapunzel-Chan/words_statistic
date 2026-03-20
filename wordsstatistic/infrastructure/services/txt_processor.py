@@ -1,4 +1,5 @@
 import asyncio
+import os
 from collections import defaultdict
 from typing import List, Dict
 import re
@@ -9,47 +10,90 @@ from ...domain.interfaces.repos import IFileProcessor
 class WordProcessor(IFileProcessor):
     """Процессор для обработки слов в файле"""
 
-    def __init__(self, chunk_size: int = 1024 * 1024):  # 1MB chunks
+    def __init__(self, chunk_size: int = 1024 * 1024):
         self.chunk_size = chunk_size
+        self.use_lemmatization = False
+
+        try:
+            import pymorphy3
+            self.morph = pymorphy3.MorphAnalyzer()
+            self.use_lemmatization = True
+            print("Lemmatization enabled with pymorphy3")
+        except ImportError:
+            try:
+                import pymorphy2
+                self.morph = pymorphy2.MorphAnalyzer()
+                self.use_lemmatization = True
+                print("Lemmatization enabled with pymorphy2")
+            except ImportError:
+                print("Lemmatization not available, using simple normalization")
 
     async def process_file(self, file_path: str) -> List[WordStatistics]:
         """
         Обрабатывает файл и собирает статистику по словам
-        Использует потоковую обработку для больших файлов
         """
+
+        file_path = os.path.abspath(file_path)
+
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        print(f"Processing file: {file_path}")
+        print(f"File size: {os.path.getsize(file_path)} bytes")
+
         word_stats = defaultdict(lambda: {"total": 0, "lines": []})
         line_number = 0
 
-        # Открываем файл и читаем построчно
-        with open(file_path, 'r', encoding='utf-8') as file:
-            while True:
-                line = await self._read_line_async(file)
-                if not line:
-                    break
+        # Пробуем разные кодировки
+        encodings = ['utf-8', 'cp1251', 'latin-1']
 
-                # Обрабатываем строку
-                words = self._extract_words(line)
+        for encoding in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding) as file:
+                    print(f"Using encoding: {encoding}")
+                    while True:
+                        line = await self._read_line_async(file)
+                        if not line:
+                            break
 
-                # Собираем статистику по словам в строке
-                line_word_count = defaultdict(int)
-                for word in words:
-                    normalized = self._normalize_word(word)
-                    line_word_count[normalized] += 1
+                        # Убираем лишние пробелы и переносы
+                        line = line.strip()
+                        if not line:
+                            line_number += 1
+                            continue
 
-                # Обновляем общую статистику
-                for word, count in line_word_count.items():
-                    stats = word_stats[word]
-                    stats["total"] += count
-                    # Добавляем счет для текущей строки
-                    while len(stats["lines"]) <= line_number:
-                        stats["lines"].append(0)
-                    stats["lines"][line_number] = count
+                        # Обрабатываем строку
+                        words = self._extract_words(line)
 
-                line_number += 1
+                        # Собираем статистику по словам в строке
+                        line_word_count = defaultdict(int)
+                        for word in words:
+                            normalized = self._normalize_word(word)
+                            line_word_count[normalized] += 1
 
-                # Периодически делаем yield для предотвращения блокировки
-                if line_number % 100 == 0:
-                    await asyncio.sleep(0)
+                        # Обновляем общую статистику
+                        for word, count in line_word_count.items():
+                            stats = word_stats[word]
+                            stats["total"] += count
+                            # Добавляем счет для текущей строки
+                            while len(stats["lines"]) <= line_number:
+                                stats["lines"].append(0)
+                            stats["lines"][line_number] = count
+
+                        line_number += 1
+
+                        # Периодически выводим прогресс
+                        if line_number % 100 == 0:
+                            print(f"Processed {line_number} lines...")
+                            await asyncio.sleep(0)
+                break
+            except UnicodeDecodeError:
+                continue  # Пробуем следующую кодировку
+
+        if line_number == 0:
+            raise Exception("Could not read file with any encoding")
+
+        print(f"Processed {line_number} lines, found {len(word_stats)} unique words")
 
         # Преобразуем результат
         result = []
@@ -64,13 +108,20 @@ class WordProcessor(IFileProcessor):
                 line_counts=stats["lines"]
             ))
 
+        # Сортируем по убыванию частоты
+        result.sort(key=lambda x: x.total_count, reverse=True)
+
+        # Выводим топ-10 слов
+        print("\nTop 10 words:")
+        for i, stat in enumerate(result[:10], 1):
+            print(f"  {i}. {stat.word_form}: {stat.total_count}")
+
         return result
 
     async def _read_line_async(self, file):
-        """Асинхронное чтение строки из файла"""
-        # Имитация асинхронного чтения
+        """Асинхронное чтение строки"""
         line = file.readline()
-        await asyncio.sleep(0)  # Даем возможность переключиться другим задачам
+        await asyncio.sleep(0)
         return line
 
     def _extract_words(self, line: str) -> List[str]:
@@ -80,7 +131,21 @@ class WordProcessor(IFileProcessor):
         return words
 
     def _normalize_word(self, word: str) -> str:
-        """Нормализует слово (приводит к начальной форме)"""
-        # Простая нормализация - приводим к нижнему регистру
-        # В реальном проекте здесь должна быть более сложная логика
-        return word.lower()
+        """
+        Нормализует слово (приводит к начальной форме)
+        """
+        word_lower = word.lower()
+
+        if self.use_lemmatization:
+            try:
+                parsed = self.morph.parse(word_lower)[0]
+                return parsed.normal_form
+            except:
+                return word_lower
+        else:
+            # Упрощенная нормализация для русского языка
+            # Удаляем типичные окончания
+            word_lower = re.sub(r'(ами|ями|ах|ях|ов|ев|ей|ом|ем|е|у|ю|а|я|и|ы)$', '', word_lower)
+            # Удаляем "ь" на конце
+            word_lower = re.sub(r'ь$', '', word_lower)
+            return word_lower

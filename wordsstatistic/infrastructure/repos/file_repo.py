@@ -1,5 +1,5 @@
 import os
-import shutil
+import asyncio
 from typing import List
 from datetime import datetime
 from ...domain.entities.words_statistic import WordStatistics
@@ -11,11 +11,21 @@ class FileRepository(IWordStatisticsRepository):
     """Репозиторий для сохранения статистики в файл"""
 
     def __init__(self, upload_dir: str = "uploads", reports_dir: str = "reports"):
-        self.upload_dir = upload_dir
-        self.reports_dir = reports_dir
-        os.makedirs(upload_dir, exist_ok=True)
-        os.makedirs(reports_dir, exist_ok=True)
-        self.excel_generator = ExcelGenerator(reports_dir)
+        current_file = os.path.abspath(__file__)
+        self.project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+
+        self.upload_dir = os.path.join(self.project_root, upload_dir)
+        self.reports_dir = os.path.join(self.project_root, reports_dir)
+
+        # Создаем директории
+        os.makedirs(self.upload_dir, exist_ok=True)
+        os.makedirs(self.reports_dir, exist_ok=True)
+
+        self.excel_generator = ExcelGenerator(self.reports_dir)
+
+        print(f"Project root: {self.project_root}")
+        print(f"Upload directory: {self.upload_dir}")
+        print(f"Reports directory: {self.reports_dir}")
 
     async def save_uploaded_file(self, file_content: bytes, filename: str) -> str:
         """Сохраняет загруженный файл"""
@@ -23,10 +33,17 @@ class FileRepository(IWordStatisticsRepository):
         safe_filename = f"{timestamp}_{filename}"
         file_path = os.path.join(self.upload_dir, safe_filename)
 
-        with open(file_path, "wb") as f:
-            f.write(file_content)
+        # Сохраняем файл
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, self._save_file, file_path, file_content)
 
+        print(f"File saved: {file_path}")
         return file_path
+
+    def _save_file(self, file_path: str, content: bytes):
+        """Синхронное сохранение файла"""
+        with open(file_path, "wb") as f:
+            f.write(content)
 
     async def save(self, statistics: List[WordStatistics]) -> str:
         """Сохраняет статистику в Excel файл"""
@@ -38,5 +55,10 @@ class FileRepository(IWordStatisticsRepository):
 
     async def cleanup(self, file_path: str):
         """Удаляет временные файлы"""
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        try:
+            if os.path.exists(file_path):
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, os.remove, file_path)
+                print(f"Cleaned up: {file_path}")
+        except Exception as e:
+            print(f"Error cleaning up {file_path}: {e}")
